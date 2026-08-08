@@ -1,0 +1,23 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Complete generated Android wrapper files
+        run: flutter create --platforms=android --org ir.ahanchi .
+      - run: flutter pub get
+      - run: dart format --output=none lib test
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build apk --debug
