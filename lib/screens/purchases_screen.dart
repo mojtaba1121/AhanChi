@@ -22,10 +22,12 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
       future: remoteFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        if (snapshot.hasError) return Center(child: OutlinedButton.icon(
-          onPressed: () => setState(() => remoteFuture = ref.read(repositoryProvider).api.list('/purchases')),
-          icon: const Icon(Icons.refresh), label: const Text('دریافت خریدها از سرور'),
-        ));
+        if (snapshot.hasError) {
+          return Center(child: OutlinedButton.icon(
+            onPressed: () => setState(() => remoteFuture = ref.read(repositoryProvider).api.list('/purchases')),
+            icon: const Icon(Icons.refresh), label: const Text('دریافت خریدها از سرور'),
+          ));
+        }
         final rows = snapshot.data!;
         if (rows.isEmpty) return const Center(child: Text('هنوز خریدی ثبت نشده است'));
         return RefreshIndicator(

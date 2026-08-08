@@ -52,14 +52,14 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
       const SizedBox(height: 6), const Text('اطلاعات روی گوشی ذخیره می‌شود و نیازی به اینترنت لحظه‌ای ندارد.'),
       const SizedBox(height: 22),
       DropdownButtonFormField<String>(
-        value: sellerId, isExpanded: true, decoration: const InputDecoration(labelText: 'فروشنده', prefixIcon: Icon(Icons.person_outline)),
+        initialValue: sellerId, isExpanded: true, decoration: const InputDecoration(labelText: 'فروشنده', prefixIcon: Icon(Icons.person_outline)),
         items: sellers.map((item) => DropdownMenuItem(value: item.localId, child: Text(item.fullName))).toList(),
         onChanged: (value) => setState(() => sellerId = value),
       ),
       if (sellers.isEmpty) const Padding(padding: EdgeInsets.only(top: 8), child: Text('ابتدا از بخش فروشنده‌ها یک نفر را ثبت کنید.', style: TextStyle(color: Colors.deepOrange))),
       const SizedBox(height: 14),
       DropdownButtonFormField<String>(
-        value: materialId, isExpanded: true, decoration: const InputDecoration(labelText: 'نوع فلز', prefixIcon: Icon(Icons.category_outlined)),
+        initialValue: materialId, isExpanded: true, decoration: const InputDecoration(labelText: 'نوع فلز', prefixIcon: Icon(Icons.category_outlined)),
         items: materials.map((item) => DropdownMenuItem(value: item.id, child: Text(item.nameFa))).toList(),
         onChanged: (value) => setState(() => materialId = value),
       ),

@@ -2,7 +2,7 @@ name: Flutter CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, 'agent/**']
   pull_request:
 
 jobs:
@@ -18,6 +18,24 @@ jobs:
         run: flutter create --platforms=android --org ir.ahanchi .
       - run: flutter pub get
       - run: dart format --output=none lib test
-      - run: flutter analyze
+      - name: Run flutter analyze
+        shell: bash
+        run: |
+          set +e
+          flutter analyze 2>&1 | tee flutter-analyze.log
+          analyze_status=${PIPESTATUS[0]}
+          if [ "$analyze_status" -ne 0 ]; then
+            while IFS= read -r line; do
+              line=${line//'%'/'%25'}
+              line=${line//$'\r'/'%0D'}
+              line=${line//$'\n'/'%0A'}
+              echo "::error title=Flutter analyze::$line"
+            done < flutter-analyze.log
+          fi
+          exit "$analyze_status"
       - run: flutter test
       - run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ahanchi-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
