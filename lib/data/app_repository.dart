@@ -41,13 +41,13 @@ class AppRepository {
     await _trySync();
   }
 
-  Future<void> addPurchase({required String sellerLocalId, required String materialId, required int weightGrams, required int pricePerKgToman, String? note}) async {
+  Future<SyncResult?> addPurchase({required String sellerLocalId, required String materialId, required int weightGrams, required int pricePerKgToman, String? note}) async {
     await db.addPurchase(LocalPurchase(
       localId: _uuid.v4(), sellerLocalId: sellerLocalId, materialId: materialId,
       weightGrams: weightGrams, pricePerKgToman: pricePerKgToman,
       totalAmountToman: calculateTotal(weightGrams, pricePerKgToman), purchasedAt: DateTime.now(), note: note,
     ));
-    await _trySync();
+    return _trySync();
   }
 
   Future<void> addLedger({required String sellerLocalId, required String type, required int amountToman, String? note}) async {
@@ -55,7 +55,7 @@ class AppRepository {
     await _trySync();
   }
 
-  Future<void> _trySync() async {
-    try { await sync.syncAll(); } catch (_) { /* local data is intentionally retained */ }
+  Future<SyncResult?> _trySync() async {
+    try { return await sync.syncAll(); } catch (_) { return null; /* local data is intentionally retained */ }
   }
 }

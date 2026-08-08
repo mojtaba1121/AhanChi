@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/api_failure.dart';
 import '../core/formatters.dart';
 import '../models/models.dart';
 import '../providers.dart';
@@ -32,14 +33,23 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فروشنده، نوع ماده، وزن و قیمت را کامل کنید'))); return;
     }
     setState(() => saving = true);
-    await ref.read(repositoryProvider).addPurchase(
-      sellerLocalId: sellerId!, materialId: materialId!, weightGrams: kilogramsTextToGrams(weightController.text),
-      pricePerKgToman: int.parse(priceController.text.replaceAll(',', '')), note: noteController.text.trim(),
-    );
-    ref.invalidate(purchasesProvider); ref.invalidate(pendingCountProvider);
-    if (mounted) {
-      setState(() { saving = false; sellerId = null; materialId = null; total = 0; weightController.clear(); priceController.clear(); noteController.clear(); });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خرید ذخیره شد؛ در صورت نبود اینترنت بعداً ارسال می‌شود')));
+    try {
+      final syncResult = await ref.read(repositoryProvider).addPurchase(
+        sellerLocalId: sellerId!, materialId: materialId!, weightGrams: kilogramsTextToGrams(weightController.text),
+        pricePerKgToman: int.parse(priceController.text.replaceAll(',', '')), note: noteController.text.trim(),
+      );
+      ref.invalidate(purchasesProvider); ref.invalidate(pendingCountProvider);
+      if (mounted) {
+        setState(() { saving = false; sellerId = null; materialId = null; total = 0; weightController.clear(); priceController.clear(); noteController.clear(); });
+        final synced = syncResult != null && syncResult.failed == 0;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+          synced ? 'خرید ذخیره و با سرور همگام شد' : 'خرید روی گوشی ذخیره شد؛ ارسال ناموفق بود و دوباره تلاش می‌شود',
+        )));
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyErrorMessage(error))));
     }
   }
 

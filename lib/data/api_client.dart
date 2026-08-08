@@ -21,7 +21,10 @@ class ApiClient {
       if (kDebugMode) debugPrint('[AhanChi API] ${response.requestOptions.method} ${response.requestOptions.path} -> ${response.statusCode}');
       handler.next(response);
     }, onError: (error, handler) {
-      if (kDebugMode) debugPrint('[AhanChi API] ${error.requestOptions.method} ${error.requestOptions.path} -> ${error.response?.statusCode ?? error.type.name}');
+      if (kDebugMode) {
+        final failure = ApiFailure.fromDio(error);
+        debugPrint('[AhanChi API] ${error.requestOptions.method} ${error.requestOptions.path} -> ${error.response?.statusCode ?? error.type.name}: ${failure.message}');
+      }
       handler.next(error);
     }));
   }

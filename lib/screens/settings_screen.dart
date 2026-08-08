@@ -22,7 +22,10 @@ class SettingsScreen extends ConsumerWidget {
         ListTile(leading: const Icon(Icons.sync_outlined), title: const Text('همگام‌سازی اکنون'), onTap: () async {
           final result = await repository.sync.syncAll();
           ref.invalidate(pendingCountProvider); ref.invalidate(materialsProvider); ref.invalidate(sellersProvider); ref.invalidate(purchasesProvider);
-          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result.synced} ارسال موفق، ${result.failed} ناموفق')));
+          if (context.mounted) {
+            final detail = result.lastError == null ? '' : '\n${result.lastError}';
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result.synced} ارسال موفق، ${result.failed} ناموفق$detail')));
+          }
         }),
       ])),
       const SizedBox(height: 14),
