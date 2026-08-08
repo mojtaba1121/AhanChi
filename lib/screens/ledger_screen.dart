@@ -39,7 +39,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
       const SizedBox(height: 6), const Text('پرداخت یا دریافت وجه برای حساب هر فروشنده ثبت می‌شود.'),
       const SizedBox(height: 22),
       DropdownButtonFormField<String>(
-        value: sellerId, isExpanded: true, decoration: const InputDecoration(labelText: 'فروشنده'),
+        initialValue: sellerId, isExpanded: true, decoration: const InputDecoration(labelText: 'فروشنده'),
         items: sellers.map((item) => DropdownMenuItem(value: item.localId, child: Text(item.fullName))).toList(),
         onChanged: (value) => setState(() => sellerId = value),
       ),

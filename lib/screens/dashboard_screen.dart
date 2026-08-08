@@ -66,11 +66,13 @@ class _ManagerDashboardState extends ConsumerState<_ManagerDashboard> {
     future: future,
     builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-      if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.cloud_off_rounded, size: 56), const SizedBox(height: 12),
-        const Text('برای گزارش مدیر اتصال به سرور لازم است'), const SizedBox(height: 12),
-        OutlinedButton.icon(onPressed: refresh, icon: const Icon(Icons.refresh), label: const Text('تلاش دوباره')),
-      ])));
+      if (snapshot.hasError) {
+        return Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.cloud_off_rounded, size: 56), const SizedBox(height: 12),
+          const Text('برای گزارش مدیر اتصال به سرور لازم است'), const SizedBox(height: 12),
+          OutlinedButton.icon(onPressed: refresh, icon: const Icon(Icons.refresh), label: const Text('تلاش دوباره')),
+        ])));
+      }
       final data = snapshot.data!;
       final overview = (data['overview'] as Map<String, dynamic>?) ?? {};
       final materials = (data['byMaterial'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
