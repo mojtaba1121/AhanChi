@@ -19,12 +19,20 @@ class SettingsScreen extends ConsumerWidget {
       Card(child: Column(children: [
         ListTile(leading: const Icon(Icons.dns_outlined), title: const Text('آدرس سرور'), subtitle: Text(repository.api.serverUrl, textDirection: TextDirection.ltr)),
         const Divider(height: 1),
-        ListTile(leading: const Icon(Icons.sync_outlined), title: const Text('همگام‌سازی اکنون'), onTap: () async {
+        ListTile(leading: const Icon(Icons.sync_outlined), title: Text(session.isManager ? 'تازه‌سازی اطلاعات' : 'همگام‌سازی اکنون'), onTap: () async {
+          if (session.isManager) {
+            await Future.wait([
+              ref.refresh(managerDashboardProvider.future),
+              ref.refresh(remotePurchasesProvider.future),
+              ref.refresh(usersProvider.future),
+            ]);
+            return;
+          }
           final result = await repository.sync.syncAll();
           ref.invalidate(pendingCountProvider); ref.invalidate(materialsProvider); ref.invalidate(sellersProvider); ref.invalidate(purchasesProvider);
-          if (context.mounted) {
+          if (context.mounted && result.failed > 0) {
             final detail = result.lastError == null ? '' : '\n${result.lastError}';
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result.synced} ارسال موفق، ${result.failed} ناموفق$detail')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result.failed} ارسال ناموفق$detail')));
           }
         }),
       ])),

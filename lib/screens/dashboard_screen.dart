@@ -49,37 +49,31 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _ManagerDashboard extends ConsumerStatefulWidget {
+class _ManagerDashboard extends ConsumerWidget {
   const _ManagerDashboard();
-  @override
-  ConsumerState<_ManagerDashboard> createState() => _ManagerDashboardState();
-}
-
-class _ManagerDashboardState extends ConsumerState<_ManagerDashboard> {
-  late Future<Map<String, dynamic>> future;
-  @override
-  void initState() { super.initState(); future = ref.read(repositoryProvider).api.get('/reports/dashboard'); }
-  Future<void> refresh() async { setState(() => future = ref.read(repositoryProvider).api.get('/reports/dashboard')); await future; }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
-    future: future,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-      if (snapshot.hasError) {
+  Widget build(BuildContext context, WidgetRef ref) => ref.watch(managerDashboardProvider).when(
+    loading: () => const Center(child: CircularProgressIndicator()),
+    error: (_, __) {
         return Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.cloud_off_rounded, size: 56), const SizedBox(height: 12),
           const Text('برای گزارش مدیر اتصال به سرور لازم است'), const SizedBox(height: 12),
-          OutlinedButton.icon(onPressed: refresh, icon: const Icon(Icons.refresh), label: const Text('تلاش دوباره')),
+          OutlinedButton.icon(onPressed: () => ref.invalidate(managerDashboardProvider), icon: const Icon(Icons.refresh), label: const Text('تلاش دوباره')),
         ])));
-      }
-      final data = snapshot.data!;
+    },
+    data: (data) {
       final overview = (data['overview'] as Map<String, dynamic>?) ?? {};
       final materials = (data['byMaterial'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       final reps = (data['byRepresentative'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       final largest = data['largestCreditor'] as Map<String, dynamic>?;
+      final highestDay = data['highestVolumeDay'] as Map<String, dynamic>?;
+      final sellers = (data['sellers'] as Map<String, dynamic>?) ?? {};
+      final sellersByCity = (sellers['byCity'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      final balances = (data['sellerBalances'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      final financial = (data['financialSummary'] as Map<String, dynamic>?) ?? {};
       return RefreshIndicator(
-        onRefresh: refresh,
+        onRefresh: () => ref.refresh(managerDashboardProvider.future),
         child: ListView(padding: const EdgeInsets.all(16), children: [
           _HeroCard(title: 'خرید ۳۰ روز اخیر', subtitle: '${overview['purchaseCount'] ?? 0} تراکنش', value: weight((overview['totalWeightGrams'] as num? ?? 0).round()), icon: Icons.analytics_rounded),
           const SizedBox(height: 14),
@@ -89,7 +83,49 @@ class _ManagerDashboardState extends ConsumerState<_ManagerDashboard> {
             Expanded(child: _MetricCard(label: 'بدهی فروشندگان', value: toman((overview['totalPayableToman'] as num? ?? 0).round()), icon: Icons.account_balance_wallet_outlined, accent: true)),
           ]),
           const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: _MetricCard(label: 'مطالبات از فروشندگان', value: toman((overview['totalReceivableToman'] as num? ?? 0).round()), icon: Icons.request_quote_outlined)),
+            const SizedBox(width: 12),
+            Expanded(child: _MetricCard(label: 'عملیات مالی', value: '${financial['operationCount'] ?? 0} مورد', icon: Icons.swap_vert_circle_outlined)),
+          ]),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: _MetricCard(label: 'تعداد فروشندگان', value: '${sellers['total'] ?? 0} نفر', icon: Icons.groups_outlined)),
+            const SizedBox(width: 12),
+            Expanded(child: _MetricCard(label: 'شهرهای فعال', value: '${sellers['cityCount'] ?? 0} شهر', icon: Icons.location_city_outlined)),
+          ]),
+          const SizedBox(height: 14),
           if (largest != null) _MetricCard(label: 'بزرگ‌ترین طلبکار: ${largest['fullName']}', value: toman((largest['balanceToman'] as num? ?? 0).round()), icon: Icons.person_pin_circle_outlined),
+          if (highestDay != null) ...[
+            const SizedBox(height: 14),
+            _MetricCard(label: 'بیشترین حجم روزانه: ${highestDay['date']}', value: weight((highestDay['totalWeightGrams'] as num? ?? 0).round()), icon: Icons.calendar_month_outlined),
+          ],
+          const SizedBox(height: 22),
+          const Text('فروشندگان به تفکیک شهر', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          if (sellersByCity.isEmpty) const _EmptyState(message: 'فروشنده‌ای ثبت نشده است') else ...sellersByCity.map((row) => ListTile(
+            leading: const CircleAvatar(child: Icon(Icons.location_on_outlined)),
+            title: Text(row['city'] as String? ?? 'نامشخص'),
+            trailing: Text('${row['sellerCount'] ?? 0} نفر', style: const TextStyle(fontWeight: FontWeight.w800)),
+          )),
+          const SizedBox(height: 22),
+          const Text('مانده حساب فروشندگان', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          if (balances.isEmpty) const _EmptyState(message: 'مانده حسابی وجود ندارد') else ...balances.map((row) {
+            final balance = (row['balanceToman'] as num? ?? 0).round();
+            return Card(child: ListTile(
+              leading: CircleAvatar(child: Icon(balance >= 0 ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded)),
+              title: Text(row['fullName'] as String? ?? 'فروشنده'),
+              subtitle: Text(balance >= 0 ? 'طلب فروشنده از مجموعه' : 'طلب مجموعه از فروشنده'),
+              trailing: Text(toman(balance.abs()), style: const TextStyle(fontWeight: FontWeight.w900)),
+            ));
+          }),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: _MetricCard(label: 'پرداخت به فروشندگان', value: toman((financial['paymentToSellersToman'] as num? ?? 0).round()), icon: Icons.call_made_outlined)),
+            const SizedBox(width: 12),
+            Expanded(child: _MetricCard(label: 'دریافت از فروشندگان', value: toman((financial['receiptFromSellersToman'] as num? ?? 0).round()), icon: Icons.call_received_outlined)),
+          ]),
           const SizedBox(height: 22),
           const Text('تفکیک مواد', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 10),

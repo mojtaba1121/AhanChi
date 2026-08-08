@@ -38,13 +38,18 @@ flutter test
 flutter run
 ```
 
-در صفحه ورود، آدرس API قابل تنظیم است. برای Emulator اندروید و بک‌اند روی همان کامپیوتر:
+آدرس API در صفحه ورود نمایش داده نمی‌شود و هنگام build تنظیم می‌شود. برای Emulator اندروید و بک‌اند روی همان کامپیوتر مقدار پیش‌فرض زیر استفاده می‌شود:
 
 ```text
 http://10.0.2.2:3000/api/v1
 ```
 
-برای گوشی واقعی باید IP یا دامنه HTTPS سرور وارد شود.
+برای گوشی واقعی، build را با دامنه HTTPS سرور ایجاد کنید:
+
+```bash
+flutter run --dart-define=AHANCHI_API_URL=https://api.example.com/api/v1
+flutter build apk --release --dart-define=AHANCHI_API_URL=https://api.example.com/api/v1
+```
 
 ## ساخت APK
 

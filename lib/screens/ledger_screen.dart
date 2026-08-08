@@ -19,7 +19,10 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   final note = TextEditingController();
   bool saving = false;
   @override
-  void dispose() { amount.dispose(); note.dispose(); super.dispose(); }
+  void initState() { super.initState(); amount.addListener(_refreshAmount); }
+  void _refreshAmount() { if (mounted) setState(() {}); }
+  @override
+  void dispose() { amount.removeListener(_refreshAmount); amount.dispose(); note.dispose(); super.dispose(); }
 
   Future<void> save() async {
     final value = int.tryParse(amount.text);
@@ -33,7 +36,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
       );
       ref.invalidate(pendingCountProvider);
       if (mounted) {
-        setState(() { saving = false; amount.clear(); note.clear(); });
+        setState(() { saving = false; sellerId = null; amount.clear(); note.clear(); });
         final synced = syncResult != null && syncResult.failed == 0;
         final detail = syncResult?.lastError == null ? '' : '\n${syncResult!.lastError}';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
@@ -57,6 +60,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
       const SizedBox(height: 6), const Text('پرداخت یا دریافت وجه برای حساب هر فروشنده ثبت می‌شود.'),
       const SizedBox(height: 22),
       DropdownButtonFormField<String>(
+        key: ValueKey(sellerId),
         initialValue: sellerId, isExpanded: true, decoration: const InputDecoration(labelText: 'فروشنده'),
         items: sellers.map((item) => DropdownMenuItem(value: item.localId, child: Text(item.fullName))).toList(),
         onChanged: (value) => setState(() => sellerId = value),

@@ -3,35 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/formatters.dart';
 import '../providers.dart';
 
-class PurchasesScreen extends ConsumerStatefulWidget {
+class PurchasesScreen extends ConsumerWidget {
   const PurchasesScreen({super.key, this.remote = false});
   final bool remote;
-  @override
-  ConsumerState<PurchasesScreen> createState() => _PurchasesScreenState();
-}
-
-class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
-  late Future<List<Map<String, dynamic>>> remoteFuture;
-  @override
-  void initState() { super.initState(); remoteFuture = ref.read(repositoryProvider).api.list('/purchases'); }
 
   @override
-  Widget build(BuildContext context) {
-    if (!widget.remote) return const SizedBox.shrink();
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: remoteFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        if (snapshot.hasError) {
-          return Center(child: OutlinedButton.icon(
-            onPressed: () => setState(() => remoteFuture = ref.read(repositoryProvider).api.list('/purchases')),
-            icon: const Icon(Icons.refresh), label: const Text('دریافت خریدها از سرور'),
-          ));
-        }
-        final rows = snapshot.data!;
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!remote) return const SizedBox.shrink();
+    return ref.watch(remotePurchasesProvider).when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(child: OutlinedButton.icon(
+        onPressed: () => ref.invalidate(remotePurchasesProvider),
+        icon: const Icon(Icons.refresh), label: const Text('دریافت خریدها از سرور'),
+      )),
+      data: (rows) {
         if (rows.isEmpty) return const Center(child: Text('هنوز خریدی ثبت نشده است'));
         return RefreshIndicator(
-          onRefresh: () async { setState(() => remoteFuture = ref.read(repositoryProvider).api.list('/purchases')); await remoteFuture; },
+          onRefresh: () => ref.refresh(remotePurchasesProvider.future),
           child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: rows.length, itemBuilder: (_, index) {
             final row = rows[index];
             final seller = row['seller'] as Map<String, dynamic>? ?? {};
