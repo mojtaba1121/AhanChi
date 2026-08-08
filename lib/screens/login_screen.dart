@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/api_failure.dart';
+import '../core/input_validation.dart';
 import '../core/theme/app_theme.dart';
 import '../providers.dart';
 
@@ -16,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   late final TextEditingController server;
   final formKey = GlobalKey<FormState>();
   bool obscure = true;
+  String? submitError;
 
   @override
   void initState() {
@@ -27,13 +30,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void dispose() { phone.dispose(); password.dispose(); server.dispose(); super.dispose(); }
 
   Future<void> submit() async {
-    if (!formKey.currentState!.validate()) return;
-    await ref.read(authProvider.notifier).login(phone.text.trim(), password.text, server.text.trim());
+    FocusScope.of(context).unfocus();
+    setState(() => submitError = null);
+    if (!formKey.currentState!.validate()) {
+      setState(() => submitError = 'لطفاً موارد مشخص‌شده در فرم را اصلاح کنید');
+      return;
+    }
+    await ref.read(authProvider.notifier).login(
+      normalizeIranMobile(phone.text),
+      password.text,
+      server.text.trim(),
+    );
+    if (!mounted) return;
+    final result = ref.read(authProvider);
+    if (result.hasError) {
+      setState(() => submitError = friendlyErrorMessage(result.error));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
+    final errorText = submitError ??
+        (auth.hasError ? friendlyErrorMessage(auth.error) : null) ??
+        (widget.initialError == null ? null : friendlyErrorMessage(widget.initialError));
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -43,6 +63,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               constraints: const BoxConstraints(maxWidth: 440),
               child: Form(
                 key: formKey,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(28),
@@ -55,17 +76,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 36),
                   TextFormField(
                     controller: phone, keyboardType: TextInputType.phone, textDirection: TextDirection.ltr,
-                    decoration: const InputDecoration(labelText: 'شماره موبایل', prefixIcon: Icon(Icons.phone_rounded)),
-                    validator: (value) => RegExp(r'^09\d{9}$').hasMatch(value ?? '') ? null : 'شماره موبایل صحیح نیست',
+                    autofillHints: const [AutofillHints.telephoneNumber],
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(labelText: 'شماره موبایل', hintText: '09123456789', prefixIcon: Icon(Icons.phone_rounded)),
+                    validator: validateIranMobile,
+                    onChanged: (_) {
+                      if (submitError != null) setState(() => submitError = null);
+                    },
                   ),
                   const SizedBox(height: 14),
                   TextFormField(
                     controller: password, obscureText: obscure, textDirection: TextDirection.ltr,
+                    autofillHints: const [AutofillHints.password],
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) {
+                      if (!auth.isLoading) submit();
+                    },
                     decoration: InputDecoration(
                       labelText: 'رمز عبور', prefixIcon: const Icon(Icons.lock_rounded),
                       suffixIcon: IconButton(onPressed: () => setState(() => obscure = !obscure), icon: Icon(obscure ? Icons.visibility : Icons.visibility_off)),
                     ),
-                    validator: (value) => (value?.length ?? 0) >= 8 ? null : 'رمز عبور حداقل ۸ کاراکتر است',
+                    validator: validatePassword,
+                    onChanged: (_) {
+                      if (submitError != null) setState(() => submitError = null);
+                    },
                   ),
                   const SizedBox(height: 14),
                   ExpansionTile(
@@ -74,15 +108,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [TextFormField(
                       controller: server, textDirection: TextDirection.ltr,
                       decoration: const InputDecoration(labelText: 'API URL', hintText: 'https://api.example.com/api/v1'),
-                      validator: (value) {
-                        final uri = Uri.tryParse(value ?? '');
-                        return uri != null && uri.hasScheme && uri.host.isNotEmpty ? null : 'آدرس سرور صحیح نیست';
-                      },
+                      validator: validateServerUrl,
                     )],
                   ),
-                  if (widget.initialError != null || auth.hasError) ...[
+                  if (errorText != null) ...[
                     const SizedBox(height: 12),
-                    Text(widget.initialError ?? auth.error.toString(), style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Icon(Icons.error_outline, color: Theme.of(context).colorScheme.onErrorContainer),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(errorText, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer))),
+                      ]),
+                    ),
                   ],
                   const SizedBox(height: 24),
                   FilledButton.icon(
