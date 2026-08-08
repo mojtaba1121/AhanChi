@@ -12,20 +12,8 @@ class UsersScreen extends ConsumerStatefulWidget {
 }
 
 class _UsersScreenState extends ConsumerState<UsersScreen> {
-  late Future<List<Map<String, dynamic>>> future;
-
-  @override
-  void initState() {
-    super.initState();
-    future = _loadUsers();
-  }
-
-  Future<List<Map<String, dynamic>>> _loadUsers() {
-    return ref.read(repositoryProvider).api.list('/users');
-  }
-
   void _refresh() {
-    setState(() => future = _loadUsers());
+    ref.invalidate(usersProvider);
   }
 
   Future<void> add() async {
@@ -47,19 +35,15 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
 
   @override
   Widget build(BuildContext context) => Stack(children: [
-    FutureBuilder<List<Map<String, dynamic>>>(
-      future: future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
+    ref.watch(usersProvider).when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) {
           return Center(child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               const Icon(Icons.cloud_off_outlined, size: 48),
               const SizedBox(height: 12),
-              Text(friendlyErrorMessage(snapshot.error), textAlign: TextAlign.center),
+              Text(friendlyErrorMessage(error), textAlign: TextAlign.center),
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: _refresh,
@@ -68,17 +52,13 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
               ),
             ]),
           ));
-        }
-
-        final users = snapshot.data ?? [];
+      },
+      data: (users) {
         if (users.isEmpty) {
           return const Center(child: Text('هنوز نماینده‌ای ایجاد نشده است'));
         }
         return RefreshIndicator(
-          onRefresh: () async {
-            _refresh();
-            await future;
-          },
+          onRefresh: () => ref.refresh(usersProvider.future),
           child: ListView.builder(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
             itemCount: users.length,
@@ -153,8 +133,8 @@ class _CreateRepresentativeDialogState extends ConsumerState<_CreateRepresentati
         'phone': normalizeIranMobile(phone.text),
         'password': password.text,
         'role': 'REPRESENTATIVE',
-        if (cityValue.isNotEmpty) 'city': cityValue,
-        if (villageValue.isNotEmpty) 'village': villageValue,
+        'city': cityValue,
+        'village': villageValue,
       });
       if (mounted) Navigator.pop(context, true);
     } catch (error) {
@@ -211,7 +191,8 @@ class _CreateRepresentativeDialogState extends ConsumerState<_CreateRepresentati
             TextFormField(
               controller: city,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(labelText: 'شهر'),
+              decoration: const InputDecoration(labelText: 'شهر *'),
+              validator: (value) => validateRequiredLocation(value, 'نام شهر'),
             ),
             const SizedBox(height: 10),
             TextFormField(
@@ -220,7 +201,8 @@ class _CreateRepresentativeDialogState extends ConsumerState<_CreateRepresentati
               onFieldSubmitted: (_) {
                 if (!saving) submit();
               },
-              decoration: const InputDecoration(labelText: 'روستا'),
+              decoration: const InputDecoration(labelText: 'روستا *'),
+              validator: (value) => validateRequiredLocation(value, 'نام روستا'),
             ),
             if (submitError != null) ...[
               const SizedBox(height: 12),

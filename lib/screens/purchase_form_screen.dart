@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/api_failure.dart';
 import '../core/formatters.dart';
 import '../models/models.dart';
 import '../providers.dart';
@@ -32,14 +33,23 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فروشنده، نوع ماده، وزن و قیمت را کامل کنید'))); return;
     }
     setState(() => saving = true);
-    await ref.read(repositoryProvider).addPurchase(
-      sellerLocalId: sellerId!, materialId: materialId!, weightGrams: kilogramsTextToGrams(weightController.text),
-      pricePerKgToman: int.parse(priceController.text.replaceAll(',', '')), note: noteController.text.trim(),
-    );
-    ref.invalidate(purchasesProvider); ref.invalidate(pendingCountProvider);
-    if (mounted) {
-      setState(() { saving = false; sellerId = null; materialId = null; total = 0; weightController.clear(); priceController.clear(); noteController.clear(); });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خرید ذخیره شد؛ در صورت نبود اینترنت بعداً ارسال می‌شود')));
+    try {
+      final syncResult = await ref.read(repositoryProvider).addPurchase(
+        sellerLocalId: sellerId!, materialId: materialId!, weightGrams: kilogramsTextToGrams(weightController.text),
+        pricePerKgToman: int.parse(priceController.text.replaceAll(',', '')), note: noteController.text.trim(),
+      );
+      ref.invalidate(purchasesProvider); ref.invalidate(pendingCountProvider);
+      if (mounted) {
+        setState(() { saving = false; sellerId = null; materialId = null; total = 0; weightController.clear(); priceController.clear(); noteController.clear(); });
+        final synced = syncResult != null && syncResult.failed == 0;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+          synced ? 'خرید ذخیره و با سرور همگام شد' : 'خرید روی گوشی ذخیره شد؛ ارسال ناموفق بود و دوباره تلاش می‌شود',
+        )));
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyErrorMessage(error))));
     }
   }
 
@@ -52,6 +62,7 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
       const SizedBox(height: 6), const Text('اطلاعات روی گوشی ذخیره می‌شود و نیازی به اینترنت لحظه‌ای ندارد.'),
       const SizedBox(height: 22),
       DropdownButtonFormField<String>(
+        key: ValueKey(sellerId),
         initialValue: sellerId, isExpanded: true, decoration: const InputDecoration(labelText: 'فروشنده', prefixIcon: Icon(Icons.person_outline)),
         items: sellers.map((item) => DropdownMenuItem(value: item.localId, child: Text(item.fullName))).toList(),
         onChanged: (value) => setState(() => sellerId = value),
@@ -59,6 +70,7 @@ class _PurchaseFormScreenState extends ConsumerState<PurchaseFormScreen> {
       if (sellers.isEmpty) const Padding(padding: EdgeInsets.only(top: 8), child: Text('ابتدا از بخش فروشنده‌ها یک نفر را ثبت کنید.', style: TextStyle(color: Colors.deepOrange))),
       const SizedBox(height: 14),
       DropdownButtonFormField<String>(
+        key: ValueKey(materialId),
         initialValue: materialId, isExpanded: true, decoration: const InputDecoration(labelText: 'نوع فلز', prefixIcon: Icon(Icons.category_outlined)),
         items: materials.map((item) => DropdownMenuItem(value: item.id, child: Text(item.nameFa))).toList(),
         onChanged: (value) => setState(() => materialId = value),

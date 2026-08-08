@@ -50,6 +50,13 @@ String? validateFullName(String? value) {
   return null;
 }
 
+String? validateRequiredLocation(String? value, String label) {
+  final normalized = value?.trim() ?? '';
+  if (normalized.isEmpty) return '$label الزامی است';
+  if (normalized.length < 2) return '$label باید حداقل ۲ کاراکتر باشد';
+  return null;
+}
+
 String? validateServerUrl(String? value) {
   final uri = Uri.tryParse(value?.trim() ?? '');
   if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
