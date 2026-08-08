@@ -50,9 +50,9 @@ class AppRepository {
     return _trySync();
   }
 
-  Future<void> addLedger({required String sellerLocalId, required String type, required int amountToman, String? note}) async {
+  Future<SyncResult?> addLedger({required String sellerLocalId, required String type, required int amountToman, String? note}) async {
     await db.addLedger(LocalLedgerEntry(localId: _uuid.v4(), sellerLocalId: sellerLocalId, type: type, amountToman: amountToman, occurredAt: DateTime.now(), note: note));
-    await _trySync();
+    return _trySync();
   }
 
   Future<SyncResult?> _trySync() async {

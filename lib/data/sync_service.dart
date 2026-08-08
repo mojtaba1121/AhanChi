@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../core/api_failure.dart';
 import '../models/models.dart';
 import 'api_client.dart';
@@ -14,8 +16,21 @@ class SyncService {
   SyncService(this.db, this.api);
   final LocalDatabase db;
   final ApiClient api;
+  Future<SyncResult>? _activeSync;
 
-  Future<SyncResult> syncAll() async {
+  Future<SyncResult> syncAll() {
+    final activeSync = _activeSync;
+    if (activeSync != null) return activeSync;
+
+    late final Future<SyncResult> sync;
+    sync = _syncAll().whenComplete(() {
+      if (identical(_activeSync, sync)) _activeSync = null;
+    });
+    _activeSync = sync;
+    return sync;
+  }
+
+  Future<SyncResult> _syncAll() async {
     var synced = 0;
     var failed = 0;
     String? lastError;
@@ -90,13 +105,23 @@ class SyncService {
       if (seller.address?.isNotEmpty == true) 'address': seller.address,
     });
     final serverId = (result['_id'] ?? result['id']) as String;
+    if (kDebugMode) {
+      debugPrint('[AhanChi Sync] seller ${seller.localId} -> $serverId');
+    }
     await db.markSellerSynced(seller.localId, serverId);
     return serverId;
   }
 
   Future<Map<String, dynamic>> _postPurchase(LocalPurchase purchase, String sellerServerId) {
+    if (kDebugMode) {
+      debugPrint(
+        '[AhanChi Sync] purchase ${purchase.localId}: '
+        'seller ${purchase.sellerLocalId} -> $sellerServerId',
+      );
+    }
     return api.post('/purchases', {
       'sellerId': sellerServerId,
+      'sellerClientId': purchase.sellerLocalId,
       'materialId': purchase.materialId,
       'weightGrams': purchase.weightGrams,
       'pricePerKgToman': purchase.pricePerKgToman,
@@ -107,8 +132,15 @@ class SyncService {
   }
 
   Future<Map<String, dynamic>> _postLedger(LocalLedgerEntry entry, String sellerServerId) {
+    if (kDebugMode) {
+      debugPrint(
+        '[AhanChi Sync] ledger ${entry.localId}: '
+        'seller ${entry.sellerLocalId} -> $sellerServerId',
+      );
+    }
     return api.post('/ledger', {
       'sellerId': sellerServerId,
+      'sellerClientId': entry.sellerLocalId,
       'type': entry.type,
       'amountToman': entry.amountToman,
       'clientOperationId': entry.localId,

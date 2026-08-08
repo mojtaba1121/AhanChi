@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/api_failure.dart';
 import '../core/formatters.dart';
 import '../models/models.dart';
 import '../providers.dart';
@@ -26,9 +27,26 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فروشنده و مبلغ صحیح را وارد کنید'))); return;
     }
     setState(() => saving = true);
-    await ref.read(repositoryProvider).addLedger(sellerLocalId: sellerId!, type: type, amountToman: value, note: note.text.trim());
-    ref.invalidate(pendingCountProvider);
-    if (mounted) { setState(() { saving = false; amount.clear(); note.clear(); }); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('عملیات مالی ثبت شد'))); }
+    try {
+      final syncResult = await ref.read(repositoryProvider).addLedger(
+        sellerLocalId: sellerId!, type: type, amountToman: value, note: note.text.trim(),
+      );
+      ref.invalidate(pendingCountProvider);
+      if (mounted) {
+        setState(() { saving = false; amount.clear(); note.clear(); });
+        final synced = syncResult != null && syncResult.failed == 0;
+        final detail = syncResult?.lastError == null ? '' : '\n${syncResult!.lastError}';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+          synced
+            ? 'عملیات مالی ذخیره و با سرور همگام شد'
+            : 'عملیات مالی روی گوشی ذخیره شد؛ ارسال ناموفق بود و دوباره تلاش می‌شود$detail',
+        )));
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyErrorMessage(error))));
+    }
   }
 
   @override
