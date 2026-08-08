@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/api_failure.dart';
 import '../models/models.dart';
 
 class ApiClient {
@@ -13,7 +15,14 @@ class ApiClient {
     _dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
       final token = preferences.getString('access_token');
       if (token != null) options.headers['Authorization'] = 'Bearer $token';
+      if (kDebugMode) debugPrint('[AhanChi API] ${options.method} ${options.path} -> sending');
       handler.next(options);
+    }, onResponse: (response, handler) {
+      if (kDebugMode) debugPrint('[AhanChi API] ${response.requestOptions.method} ${response.requestOptions.path} -> ${response.statusCode}');
+      handler.next(response);
+    }, onError: (error, handler) {
+      if (kDebugMode) debugPrint('[AhanChi API] ${error.requestOptions.method} ${error.requestOptions.path} -> ${error.response?.statusCode ?? error.type.name}');
+      handler.next(error);
     }));
   }
 
@@ -28,24 +37,40 @@ class ApiClient {
   }
 
   Future<AuthSession> login(String phone, String password) async {
-    final response = await _dio.post<Map<String, dynamic>>('/auth/login', data: {'phone': phone, 'password': password});
-    final session = AuthSession.fromJson(response.data!);
-    await preferences.setString('access_token', session.accessToken);
-    return session;
+    return _guard(() async {
+      final response = await _dio.post<Map<String, dynamic>>('/auth/login', data: {'phone': phone, 'password': password});
+      final session = AuthSession.fromJson(response.data!);
+      await preferences.setString('access_token', session.accessToken);
+      return session;
+    });
   }
 
   Future<List<Map<String, dynamic>>> list(String path, {Map<String, dynamic>? query}) async {
-    final response = await _dio.get<List<dynamic>>(path, queryParameters: query);
-    return response.data!.cast<Map<String, dynamic>>();
+    return _guard(() async {
+      final response = await _dio.get<List<dynamic>>(path, queryParameters: query);
+      return response.data!.cast<Map<String, dynamic>>();
+    });
   }
 
   Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? query}) async {
-    final response = await _dio.get<Map<String, dynamic>>(path, queryParameters: query);
-    return response.data!;
+    return _guard(() async {
+      final response = await _dio.get<Map<String, dynamic>>(path, queryParameters: query);
+      return response.data!;
+    });
   }
 
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> data) async {
-    final response = await _dio.post<Map<String, dynamic>>(path, data: data);
-    return response.data!;
+    return _guard(() async {
+      final response = await _dio.post<Map<String, dynamic>>(path, data: data);
+      return response.data!;
+    });
+  }
+
+  Future<T> _guard<T>(Future<T> Function() request) async {
+    try {
+      return await request();
+    } on DioException catch (error) {
+      throw ApiFailure.fromDio(error);
+    }
   }
 }

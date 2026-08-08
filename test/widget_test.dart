@@ -20,4 +20,23 @@ void main() {
     expect(find.text('آهن‌چی'), findsOneWidget);
     expect(find.text('ورود به سامانه'), findsOneWidget);
   });
+
+  testWidgets('shows clear validation messages for an empty login form', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [preferencesProvider.overrideWithValue(preferences)],
+        child: const AhanChiApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ورود به سامانه'));
+    await tester.pump();
+
+    expect(find.text('شماره موبایل الزامی است'), findsOneWidget);
+    expect(find.text('رمز عبور الزامی است'), findsOneWidget);
+    expect(find.text('لطفاً موارد مشخص‌شده در فرم را اصلاح کنید'), findsOneWidget);
+  });
 }
