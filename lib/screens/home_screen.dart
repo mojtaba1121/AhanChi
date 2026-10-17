@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/api_failure.dart';
 import '../models/models.dart';
 import '../providers.dart';
 import 'dashboard_screen.dart';
@@ -28,14 +29,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) { if (state == AppLifecycleState.resumed) sync(); }
 
-  Future<void> sync() async {
+  Future<void> sync({bool showErrors = false}) async {
     if (syncing) return;
     setState(() => syncing = true);
-    final result = await ref.read(repositoryProvider).sync.syncAll();
-    ref.invalidate(materialsProvider); ref.invalidate(sellersProvider); ref.invalidate(purchasesProvider); ref.invalidate(pendingCountProvider);
-    if (mounted) {
-      setState(() => syncing = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result.synced} مورد همگام شد؛ ${result.failed} خطا')));
+    try {
+      if (widget.session.isManager) {
+        await Future.wait([
+          ref.refresh(managerDashboardProvider.future),
+          ref.refresh(remotePurchasesProvider.future),
+          ref.refresh(usersProvider.future),
+        ]);
+      } else {
+        final result = await ref.read(repositoryProvider).sync.syncAll();
+        ref.invalidate(materialsProvider); ref.invalidate(sellersProvider); ref.invalidate(purchasesProvider); ref.invalidate(pendingCountProvider);
+        if (showErrors && result.failed > 0 && mounted) {
+          final detail = result.lastError == null ? '' : '\n${result.lastError}';
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result.failed} مورد ارسال نشد$detail')));
+        }
+      }
+    } catch (error) {
+      if (showErrors && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyErrorMessage(error))));
+      }
+    } finally {
+      if (mounted) setState(() => syncing = false);
     }
   }
 
@@ -66,10 +83,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           Text(widget.session.fullName, style: Theme.of(context).textTheme.labelSmall),
         ]),
         actions: [
-          Consumer(builder: (_, ref, __) => ref.watch(pendingCountProvider).maybeWhen(
-            data: (count) => Badge(isLabelVisible: count > 0, label: Text('$count'), child: IconButton(onPressed: sync, tooltip: 'همگام‌سازی', icon: syncing ? const SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.sync_rounded))),
-            orElse: () => IconButton(onPressed: sync, icon: const Icon(Icons.sync_rounded)),
-          )),
+          if (isManager)
+            IconButton(
+              onPressed: () => sync(showErrors: true),
+              tooltip: 'تازه‌سازی اطلاعات',
+              icon: syncing ? const SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.refresh_rounded),
+            )
+          else
+            Consumer(builder: (_, ref, __) => ref.watch(pendingCountProvider).maybeWhen(
+              data: (count) => Badge(isLabelVisible: count > 0, label: Text('$count'), child: IconButton(onPressed: () => sync(showErrors: true), tooltip: 'همگام‌سازی', icon: syncing ? const SizedBox.square(dimension: 22, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.sync_rounded))),
+              orElse: () => IconButton(onPressed: () => sync(showErrors: true), icon: const Icon(Icons.sync_rounded)),
+            )),
           const SizedBox(width: 8),
         ],
       ),

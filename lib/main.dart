@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -8,6 +10,7 @@ import 'core/theme/app_theme.dart';
 import 'data/api_client.dart';
 import 'data/local_database.dart';
 import 'data/sync_service.dart';
+import 'models/models.dart';
 import 'providers.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
@@ -18,7 +21,10 @@ const backgroundSyncTask = 'ir.ahanchi.backgroundSync';
 void callbackDispatcher() {
   Workmanager().executeTask((_, __) async {
     final preferences = await SharedPreferences.getInstance();
-    if (preferences.getString('access_token') == null) return true;
+    final storedSession = preferences.getString('session');
+    if (preferences.getString('access_token') == null || storedSession == null) return true;
+    final session = AuthSession.fromStoredJson(jsonDecode(storedSession) as Map<String, dynamic>);
+    if (session.isManager) return true;
     try {
       await SyncService(LocalDatabase.instance, ApiClient(preferences)).syncAll();
       return true;

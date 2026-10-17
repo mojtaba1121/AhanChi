@@ -19,6 +19,7 @@ void main() {
 
     expect(find.text('آهن‌چی'), findsOneWidget);
     expect(find.text('ورود به سامانه'), findsOneWidget);
+    expect(find.text('تنظیم آدرس سرور'), findsNothing);
   });
 
   testWidgets('shows clear validation messages for an empty login form', (tester) async {

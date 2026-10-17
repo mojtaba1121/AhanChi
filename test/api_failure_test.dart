@@ -26,4 +26,20 @@ void main() {
 
     expect(failure.message, contains('ارتباط با سرور برقرار نشد'));
   });
+
+  test('keeps the not-found status and seller message for sync recovery', () {
+    final request = RequestOptions(path: '/purchases');
+    final failure = ApiFailure.fromDio(DioException(
+      requestOptions: request,
+      type: DioExceptionType.badResponse,
+      response: Response(
+        requestOptions: request,
+        statusCode: 404,
+        data: {'message': 'فروشنده پیدا نشد'},
+      ),
+    ));
+
+    expect(failure.statusCode, 404);
+    expect(failure.message, 'فروشنده پیدا نشد');
+  });
 }

@@ -15,19 +15,12 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final phone = TextEditingController();
   final password = TextEditingController();
-  late final TextEditingController server;
   final formKey = GlobalKey<FormState>();
   bool obscure = true;
   String? submitError;
 
   @override
-  void initState() {
-    super.initState();
-    server = TextEditingController(text: ref.read(repositoryProvider).api.serverUrl);
-  }
-
-  @override
-  void dispose() { phone.dispose(); password.dispose(); server.dispose(); super.dispose(); }
+  void dispose() { phone.dispose(); password.dispose(); super.dispose(); }
 
   Future<void> submit() async {
     FocusScope.of(context).unfocus();
@@ -39,7 +32,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     await ref.read(authProvider.notifier).login(
       normalizeIranMobile(phone.text),
       password.text,
-      server.text.trim(),
     );
     if (!mounted) return;
     final result = ref.read(authProvider);
@@ -100,16 +92,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onChanged: (_) {
                       if (submitError != null) setState(() => submitError = null);
                     },
-                  ),
-                  const SizedBox(height: 14),
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    title: const Text('تنظیم آدرس سرور', style: TextStyle(fontSize: 14)),
-                    children: [TextFormField(
-                      controller: server, textDirection: TextDirection.ltr,
-                      decoration: const InputDecoration(labelText: 'API URL', hintText: 'https://api.example.com/api/v1'),
-                      validator: validateServerUrl,
-                    )],
                   ),
                   if (errorText != null) ...[
                     const SizedBox(height: 12),

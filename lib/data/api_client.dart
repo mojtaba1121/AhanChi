@@ -5,6 +5,11 @@ import '../core/api_failure.dart';
 import '../models/models.dart';
 
 class ApiClient {
+  static const bundledServerUrl = String.fromEnvironment(
+    'AHANCHI_API_URL',
+    defaultValue: 'http://10.0.2.2:3000/api/v1',
+  );
+
   ApiClient(this.preferences) {
     _dio = Dio(BaseOptions(
       baseUrl: serverUrl,
@@ -21,14 +26,17 @@ class ApiClient {
       if (kDebugMode) debugPrint('[AhanChi API] ${response.requestOptions.method} ${response.requestOptions.path} -> ${response.statusCode}');
       handler.next(response);
     }, onError: (error, handler) {
-      if (kDebugMode) debugPrint('[AhanChi API] ${error.requestOptions.method} ${error.requestOptions.path} -> ${error.response?.statusCode ?? error.type.name}');
+      if (kDebugMode) {
+        final failure = ApiFailure.fromDio(error);
+        debugPrint('[AhanChi API] ${error.requestOptions.method} ${error.requestOptions.path} -> ${error.response?.statusCode ?? error.type.name}: ${failure.message}');
+      }
       handler.next(error);
     }));
   }
 
   final SharedPreferences preferences;
   late final Dio _dio;
-  String get serverUrl => preferences.getString('server_url') ?? 'http://10.0.2.2:3000/api/v1';
+  String get serverUrl => preferences.getString('server_url') ?? bundledServerUrl;
 
   Future<void> setServerUrl(String value) async {
     final normalized = value.trim().replaceAll(RegExp(r'/+$'), '');

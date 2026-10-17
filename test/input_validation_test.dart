@@ -26,4 +26,12 @@ void main() {
       expect(validatePassword('12345678'), isNull);
     });
   });
+
+  group('Required location validation', () {
+    test('requires a meaningful city and village name', () {
+      expect(validateRequiredLocation('', 'نام شهر'), 'نام شهر الزامی است');
+      expect(validateRequiredLocation('م', 'نام روستا'), 'نام روستا باید حداقل ۲ کاراکتر باشد');
+      expect(validateRequiredLocation('مشهد', 'نام شهر'), isNull);
+    });
+  });
 }
